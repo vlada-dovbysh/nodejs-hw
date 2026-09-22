@@ -23,7 +23,7 @@ app.use(cors());
 app.use(cookieParser());
 
 // Routes
-app.use('/auth', authRoutes);
+app.use(authRoutes);
 app.use(notesRoutes);
 
 // 404 middleware

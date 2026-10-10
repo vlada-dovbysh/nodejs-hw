@@ -1,24 +1,22 @@
 import bcrypt from 'bcrypt';
 import createHttpError from 'http-errors';
-
-import { User } from '../models/user.js';
-import { Session } from '../models/session.js';
-import { createSession, setSessionCookies } from '../services/auth.js';
 import jwt from 'jsonwebtoken';
 import handlebars from 'handlebars';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { User } from '../models/user.js';
+import { Session } from '../models/session.js';
+import { createSession, setSessionCookies } from '../services/auth.js';
 import { sendEmail } from '../utils/sendMail.js';
-
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const resetPasswordTemplatePath = path.resolve(
   __dirname,
-  '../templates/reset-password-email.hbs',
+  '../templates/reset-password-email.html',
 );
 
 export const registerUser = async (req, res, next) => {
@@ -58,7 +56,10 @@ export const loginUser = async (req, res, next) => {
       throw createHttpError(401, 'Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.password,
+    );
 
     if (!isPasswordValid) {
       throw createHttpError(401, 'Invalid credentials');
@@ -139,21 +140,21 @@ export const requestResetEmail = async (req, res, next) => {
 
     if (!user) {
       return res.status(200).json({
-        message: 'If the email exists, a reset link will be sent.',
+        message: 'Password reset email sent successfully',
       });
     }
 
-    const token = jwt.sign(
+    const resetToken = jwt.sign(
       {
-        userId: user._id.toString(),
+        sub: user._id.toString(),
         email: user.email,
       },
       process.env.JWT_SECRET,
-      { expiresIn: '5m' },
+      { expiresIn: '15m' },
     );
 
     const resetPasswordUrl =
-      `${process.env.APP_DOMAIN}/reset-password?token=${token}`;
+      `${process.env.FRONTEND_DOMAIN}/reset-password?token=${resetToken}`;
 
     const templateSource = await readFile(
       resetPasswordTemplatePath,
@@ -166,17 +167,24 @@ export const requestResetEmail = async (req, res, next) => {
       username: user.username,
       email: user.email,
       resetPasswordUrl,
-      token,
+      token: resetToken,
     });
 
-    await sendEmail({
-      to: user.email,
-      subject: 'Password reset',
-      html,
-    });
+    try {
+      await sendEmail({
+        from: process.env.SMTP_FROM,
+        to: user.email,
+        subject: 'Password reset',
+        html,
+      });
+    } catch {
+      return next(
+        createHttpError(500, 'Failed to send password reset email'),
+      );
+    }
 
     return res.status(200).json({
-      message: 'Password reset email sent.',
+      message: 'Password reset email sent successfully',
     });
   } catch (error) {
     next(error);
@@ -192,33 +200,32 @@ export const resetPassword = async (req, res, next) => {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch {
-      return res.status(401).json({
-        message: 'Invalid or expired reset token.',
-      });
+      return next(
+        createHttpError(401, 'Invalid or expired token'),
+      );
     }
 
-    if (!decoded.userId || !decoded.email) {
-      return res.status(401).json({
-        message: 'Invalid reset token.',
-      });
+    if (!decoded.sub || !decoded.email) {
+      return next(
+        createHttpError(401, 'Invalid or expired token'),
+      );
     }
 
     const user = await User.findOne({
-      _id: decoded.userId,
+      _id: decoded.sub,
       email: decoded.email,
     });
 
     if (!user) {
-      return res.status(404).json({
-        message: 'User not found.',
-      });
+      return next(createHttpError(404, 'User not found'));
     }
 
     user.password = await bcrypt.hash(password, 10);
+
     await user.save();
 
     return res.status(200).json({
-      message: 'Password reset successfully.',
+      message: 'Password reset successfully',
     });
   } catch (error) {
     next(error);

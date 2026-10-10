@@ -11,6 +11,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 import notesRoutes from './routes/notesRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use(cookieParser());
 // Routes
 app.use(authRoutes);
 app.use(notesRoutes);
+app.use('/users', userRoutes);
 
 // 404 middleware
 app.use(notFoundHandler);

@@ -10,9 +10,17 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+/**
+ * Sends an email.
+ * @param {Object} options - Email options.
+ * @param {string} options.to - Recipient email address.
+ * @param {string} options.subject - Email subject.
+ * @param {string} options.html - HTML email content.
+ * @returns {Promise<Object>} Result of sending the email.
+ */
 export const sendEmail = async ({ to, subject, html }) => {
   return transporter.sendMail({
-    from: process.env.SMTP_FROM,
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to,
     subject,
     html,

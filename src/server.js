@@ -26,7 +26,7 @@ app.use(cookieParser());
 // Routes
 app.use(authRoutes);
 app.use(notesRoutes);
-app.use('/users', userRoutes);
+app.use(userRoutes);
 
 // 404 middleware
 app.use(notFoundHandler);

@@ -13,12 +13,9 @@ import {
   loginUser,
   refreshUserSession,
   logoutUser,
-} from '../controllers/authController.js';
-
-import {
   requestResetEmail,
   resetPassword,
-} from '../controllers/userController.js';
+} from '../controllers/authController.js';
 
 const router = Router();
 
